@@ -17,23 +17,14 @@ class Contact(models.Model):
             GinIndex(fields=['search_vector']),
             GinIndex(fields=['first_name', 'last_name']),
         ]
-        ordering = ['last_name', 'first_name']
-    
-    def __str__(self):
-        return f"{self.first_name} {self.last_name}"
     
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.update_search_vector()
+        from django.db import transaction
+        transaction.on_commit(lambda: self.update_search_vector())
     
     def update_search_vector(self):
         from django.contrib.postgres.search import SearchVector
         Contact.objects.filter(pk=self.pk).update(
-            search_vector=(
-                SearchVector('first_name', weight='A') +
-                SearchVector('last_name', weight='A') +
-                SearchVector('email', weight='B') +
-                SearchVector('address', weight='C') +
-                SearchVector('phone_number', weight='D')
-            )
+            search_vector=SearchVector('first_name', 'last_name', 'email', 'address', 'phone_number')
         )
